@@ -2,9 +2,18 @@
 # Exclude the binary name we used in README
 FBDownloader
 FBDownloader.exe
+fbdownloader
 *.exe
 *.app
 *.dmg
+*.tar.xz
+*.zip
+
+# Fyne Cross
+# Fyne Cross
+fyne-cross/
+tmp-pkg/
+Releases/
 
 # Go specific
 go.work

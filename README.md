@@ -22,12 +22,30 @@ Esta es la versión en Go de la aplicación de descarga de imágenes de Facebook
     go run main.go
     ```
 
-## Compilación
+## Compilación y Distribución
 
-Para crear un ejecutable independiente:
+He preparado un `Makefile` para facilitar la generación de ejecutables para Windows, Mac y Linux.
 
-```bash
-go build -o FBDownloader main.go
-```
+### Requisitos Previos
+- **Go**: Necesario para compilar.
+- **Docker**: Necesario para generar los ejecutables de Windows y Linux desde Mac (usando `fyne-cross`).
 
-(En Windows se generará `FBDownloader.exe`).
+### Comandos Disponibles
+
+1.  **Instalar herramientas de compilación**:
+    ```bash
+    make install-deps
+    ```
+    Esto instalará `fyne` y `fyne-cross`.
+
+2.  **Generar todos los ejecutables**:
+    ```bash
+    make all
+    ```
+
+3.  **Generar por plataforma**:
+    - Mac: `make build-mac`
+    - Windows: `make build-windows`
+    - Linux: `make build-linux`
+
+Los ejecutables de Windows y Linux se guardarán en la carpeta `fyne-cross/bin`. El de Mac se generará en la carpeta actual.
