@@ -64,6 +64,7 @@ func main() {
 	// Main download button with logic
 	downloadBtn = widget.NewButton("Download Images", func() {
 		// Get values from inputs
+		url := urlEntry.Text
 		countStr := countEntry.Text
 		maxImages, err := strconv.Atoi(countStr)
 
@@ -87,7 +88,7 @@ func main() {
 
 		// Start download in a separate goroutine to keep UI responsive
 		go func() {
-			// Ensure button is re-enabled after process finishes
+			defer func() {
 				downloadBtn.Enable()
 				downloadBtn.SetText("Download Images")
 			}()
@@ -129,6 +130,7 @@ func main() {
 // It navigates to the URL, scrolls to load images, and collects unique image URLs.
 func downloadImages(url, folder string, maxImages int, updateStatus func(string)) error {
 	// Configure ChromeDP options (disable GPU, headless mode, etc.)
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.DisableGPU,
 		chromedp.Flag("disable-notifications", true),
 		// chromedp.Flag("headless", false), // Uncomment to see the browser
@@ -158,11 +160,11 @@ func downloadImages(url, folder string, maxImages int, updateStatus func(string)
 		}),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			updateStatus(fmt.Sprintf("Scrolling to find %d images...", maxImages))
-			
+
 			// Logic to scroll and collect image URLs
 			// In a real scenario, we might need more robust waiting/scrolling
 			uniqueURLs := make(map[string]bool)
-			
+
 			for len(uniqueURLs) < maxImages {
 				var srcs []string
 				// Execute JS to get all image srcs from the DOM
