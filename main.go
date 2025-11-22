@@ -20,23 +20,29 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
+// main is the entry point of the application.
+// It sets up the Fyne UI and handles user interactions.
 func main() {
 	a := app.New()
 	w := a.NewWindow("Facebook Image Downloader")
 	w.Resize(fyne.NewSize(600, 400))
 
-	// UI Components
+	// UI Components Setup
+	// Title label for the application
 	titleLabel := widget.NewLabelWithStyle("Facebook Image Downloader", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
+	// Input field for the Facebook URL
 	urlEntry := widget.NewEntry()
 	urlEntry.SetPlaceHolder("Enter Facebook Page/Profile URL")
 
+	// Input field for the download folder (read-only, set via Browse button)
 	folderEntry := widget.NewEntry()
 	folderEntry.SetPlaceHolder("Select Download Folder")
 	folderEntry.Disable() // Read-only, set by button
 
 	var folderPath string
 
+	// Button to open folder selection dialog
 	browseButton := widget.NewButton("Browse", func() {
 		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
 			if err == nil && uri != nil {
@@ -46,6 +52,7 @@ func main() {
 		}, w)
 	})
 
+	// Input for the number of images to download
 	countEntry := widget.NewEntry()
 	countEntry.SetText("5")
 	countLabel := widget.NewLabel("Number of Images:")
@@ -54,11 +61,13 @@ func main() {
 	statusLabel.Alignment = fyne.TextAlignCenter
 
 	var downloadBtn *widget.Button
+	// Main download button with logic
 	downloadBtn = widget.NewButton("Download Images", func() {
-		url := urlEntry.Text
+		// Get values from inputs
 		countStr := countEntry.Text
 		maxImages, err := strconv.Atoi(countStr)
 
+		// Validate inputs
 		if err != nil || maxImages <= 0 {
 			dialog.ShowError(errors.New("Please enter a valid number of images"), w)
 			return
@@ -76,8 +85,9 @@ func main() {
 		downloadBtn.SetText("Downloading...")
 		statusLabel.SetText(fmt.Sprintf("Starting download process for %d images...", maxImages))
 
+		// Start download in a separate goroutine to keep UI responsive
 		go func() {
-			defer func() {
+			// Ensure button is re-enabled after process finishes
 				downloadBtn.Enable()
 				downloadBtn.SetText("Download Images")
 			}()
@@ -115,9 +125,10 @@ func main() {
 	w.ShowAndRun()
 }
 
+// downloadImages handles the scraping logic using chromedp.
+// It navigates to the URL, scrolls to load images, and collects unique image URLs.
 func downloadImages(url, folder string, maxImages int, updateStatus func(string)) error {
-	// Create context
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+	// Configure ChromeDP options (disable GPU, headless mode, etc.)
 		chromedp.DisableGPU,
 		chromedp.Flag("disable-notifications", true),
 		// chromedp.Flag("headless", false), // Uncomment to see the browser
@@ -136,6 +147,7 @@ func downloadImages(url, folder string, maxImages int, updateStatus func(string)
 
 	var imageURLs []string
 
+	// Run ChromeDP tasks
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(url),
 		chromedp.ActionFunc(func(ctx context.Context) error {
@@ -147,19 +159,20 @@ func downloadImages(url, folder string, maxImages int, updateStatus func(string)
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			updateStatus(fmt.Sprintf("Scrolling to find %d images...", maxImages))
 			
-			// Simple scrolling logic
+			// Logic to scroll and collect image URLs
 			// In a real scenario, we might need more robust waiting/scrolling
 			uniqueURLs := make(map[string]bool)
 			
 			for len(uniqueURLs) < maxImages {
 				var srcs []string
-				// Execute JS to get all image srcs
+				// Execute JS to get all image srcs from the DOM
 				err := chromedp.Evaluate(`Array.from(document.querySelectorAll('img')).map(i => i.src)`, &srcs).Do(ctx)
 				if err != nil {
 					return err
 				}
 
 				for _, src := range srcs {
+					// Filter for Facebook content URLs (scontent)
 					if strings.Contains(src, "scontent") {
 						uniqueURLs[src] = true
 						if len(uniqueURLs) >= maxImages {
@@ -172,7 +185,7 @@ func downloadImages(url, folder string, maxImages int, updateStatus func(string)
 					break
 				}
 
-				// Scroll down
+				// Scroll down to trigger lazy loading
 				err = chromedp.Evaluate(`window.scrollTo(0, document.body.scrollHeight);`, nil).Do(ctx)
 				if err != nil {
 					return err
@@ -198,6 +211,7 @@ func downloadImages(url, folder string, maxImages int, updateStatus func(string)
 	updateStatus(fmt.Sprintf("Found %d images. Downloading...", len(imageURLs)))
 
 	count := 0
+	// Download each collected image
 	for i, imgURL := range imageURLs {
 		if i >= maxImages {
 			break
@@ -218,6 +232,7 @@ func downloadImages(url, folder string, maxImages int, updateStatus func(string)
 	return nil
 }
 
+// downloadFile downloads a single file from a URL to a local path.
 func downloadFile(url, filepath string) error {
 	resp, err := http.Get(url)
 	if err != nil {
